@@ -21,7 +21,7 @@ app.add_middleware(
 
 @app.get("/")
 def home():
-    return {"message": "Backend Running"}
+    return {"message": "Backend Running successfully"}
 
 @app.get("/questions/{role}")
 def get_questions(role: str):
