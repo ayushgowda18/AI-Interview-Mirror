@@ -1,16 +1,23 @@
 import "./Login.css";
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
+import loginArtwork from "../assets/login-artwork.png";
+
+import {
+  FaUser,
+  FaLock,
+  FaEye,
+  FaEyeSlash,
+  FaRobot,
+} from "react-icons/fa";
 
 function Login() {
+  const [showPassword, setShowPassword] = useState(false);
+
   const [form, setForm] = useState({
     username: "",
     password: "",
   });
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -31,70 +38,92 @@ function Login() {
     e.preventDefault();
 
     try {
-      const { data } = await axios.post(
+      const response = await axios.post(
         "http://127.0.0.1:8000/login",
         form
       );
 
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("username", data.username);
+      localStorage.setItem(
+        "token",
+        response.data.access_token
+      );
 
-      if (rememberMe) {
-        localStorage.setItem("rememberMe", "true");
-      }
+      localStorage.setItem(
+        "username",
+        response.data.username
+      );
 
       alert("Login Successful!");
 
       window.location.href = "/dashboard";
     } catch (error) {
-      alert(error.response?.data?.detail || "Invalid Credentials");
+      alert(
+        error.response?.data?.detail ||
+          "Invalid username or password"
+      );
     }
   };
 
   return (
     <div className="login-page">
       <div className="login-wrapper">
-        {/* LEFT SIDE */}
+
+        {/* LEFT PANEL */}
         <div className="login-left">
+
           <div className="brand">
-            <div className="logo">🪞</div>
+            <div className="brand-icon">
+              <FaRobot />
+            </div>
 
             <div>
               <h2>AI Interview Mirror</h2>
-
               <p>Your Personal AI Interview Coach</p>
             </div>
           </div>
 
           <div className="welcome-section">
-            <h1>Welcome Back 👋</h1>
+            <h1>
+              Welcome Back! 👋
+            </h1>
 
             <p>
-              Sign in to continue your AI-powered interview journey.
+              Sign in to continue your AI-powered
+              interview journey.
             </p>
           </div>
 
           <form onSubmit={handleLogin}>
+
+            {/* Username */}
             <div className="input-box">
+
               <FaUser className="input-icon" />
 
               <input
                 type="text"
                 name="username"
-                placeholder="Username"
+                placeholder="Enter your username"
                 value={form.username}
                 onChange={handleChange}
                 required
               />
+
             </div>
 
+            {/* Password */}
             <div className="input-box">
+
               <FaLock className="input-icon" />
 
               <input
-                type={showPassword ? "text" : "password"}
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
                 name="password"
-                placeholder="Password"
+                placeholder="Enter your password"
                 value={form.password}
                 onChange={handleChange}
                 required
@@ -103,7 +132,9 @@ function Login() {
               <span
                 className="eye-icon"
                 onClick={() =>
-                  setShowPassword(!showPassword)
+                  setShowPassword(
+                    !showPassword
+                  )
                 }
               >
                 {showPassword ? (
@@ -112,84 +143,59 @@ function Login() {
                   <FaEye />
                 )}
               </span>
+
             </div>
 
             <div className="options-row">
-              <label className="remember">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={() =>
-                    setRememberMe(!rememberMe)
-                  }
-                />
 
+              <label className="remember">
+                <input type="checkbox" />
                 Remember Me
               </label>
 
-              <a href="#" className="forgot-link">
+              <a
+                href="#"
+                className="forgot-link"
+              >
                 Forgot Password?
               </a>
+
             </div>
 
-            <button className="signin-btn" type="submit">
+            <button
+              type="submit"
+              className="signin-btn"
+            >
               Sign In →
             </button>
+
           </form>
 
-          <div className="register-text">
+          <div className="divider">
+            <span>or</span>
+          </div>
+
+          <p className="register-text">
             Don't have an account?
 
             <a href="/register">
               Create Account
             </a>
-          </div>
+          </p>
+
         </div>
 
-        {/* RIGHT SIDE */}
+        {/* RIGHT PANEL */}
         <div className="login-right">
-          <div className="floating-circle circle1"></div>
-          <div className="floating-circle circle2"></div>
 
-          <div className="illustration">
-            <div className="candidate">
-              👨‍💼
-            </div>
+          <img
+            src={loginArtwork}
+            alt="AI Interview"
+            className="artwork-image"
+          />
 
-            <div className="robot">
-              🤖
-            </div>
-          </div>
-
-          <div className="right-content">
-            <h1>
-              Practice.
-              <br />
-              Improve.
-              <br />
-              Succeed.
-            </h1>
-
-            <p>
-              Prepare for your dream career with
-              AI-powered mock interviews.
-            </p>
-
-            <div className="features">
-              <div className="feature">
-                📚 Practice
-              </div>
-
-              <div className="feature">
-                📊 Analyze
-              </div>
-
-              <div className="feature">
-                📈 Improve
-              </div>
-            </div>
-          </div>
         </div>
+
       </div>
     </div>
   );
