@@ -18,106 +18,275 @@ import io
 from jose import jwt
 from datetime import datetime, timedelta
 
+import google.generativeai as genai
+import json
+import os
+from dotenv import load_dotenv
 
-# Create FastAPI app
+
+# ======================================================
+# FASTAPI APP
+# ======================================================
+
 app = FastAPI()
 
-# Create database tables
+
+# ======================================================
+# DATABASE
+# ======================================================
+
 Base.metadata.create_all(bind=engine)
 
-# Password hashing
+
+# ======================================================
+# PASSWORD HASHING
+# ======================================================
+
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
 )
 
+
+# ======================================================
+# JWT CONFIGURATION
+# ======================================================
+
 SECRET_KEY = "AI_Interview_Mirror_Secret_Key_2025"
+
 ALGORITHM = "HS256"
+
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
-# Database session dependency
+# ======================================================
+# GEMINI CONFIGURATION
+# ======================================================
+
+load_dotenv()
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if not GEMINI_API_KEY:
+    raise Exception(
+        "GEMINI_API_KEY not found in .env file"
+    )
+
+genai.configure(
+    api_key=GEMINI_API_KEY
+)
+
+gemini_model = genai.GenerativeModel(
+    "gemini-2.5-flash"
+)
+
+
+# ======================================================
+# DATABASE DEPENDENCY
+# ======================================================
+
 def get_db():
     db = SessionLocal()
+
     try:
         yield db
+
     finally:
         db.close()
 
 
+# ======================================================
 # CORS
+# ======================================================
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ---------------- HOME ----------------
+# ======================================================
+# HOME
+# ======================================================
+
 @app.get("/")
 def home():
+
     return {
-        "message": "Backend Running successfully"
+        "message":
+        "Backend Running Successfully 🚀"
     }
 
 
-# ---------------- QUESTIONS ----------------
+# ======================================================
+# QUESTIONS API
+# ======================================================
+
 @app.get("/questions/{role}")
 def get_questions(role: str):
+
     return questions.get(role, [])
 
 
-# ---------------- AI ANALYSIS ----------------
-class Response(BaseModel):
-    question: str
-    answer: str
+# ======================================================
+# REGISTER API
+# ======================================================
 
+@app.post("/register")
+def register(
+    user: schemas.UserCreate,
+    db: Session = Depends(get_db)
+):
 
-@app.post("/analyze")
-def analyze(responses: list[Response]):
-
-    filler_words = [
-        "um",
-        "uh",
-        "like",
-        "basically",
-        "you know"
-    ]
-
-    total_words = 0
-    filler_count = 0
-
-    for response in responses:
-        text = response.answer.lower()
-        words = text.split()
-
-        total_words += len(words)
-
-        for filler in filler_words:
-            filler_count += text.count(filler)
-
-    score = 100 - (filler_count * 5)
-
-    if score < 0:
-        score = 0
-
-    suggestion = (
-        "Excellent communication!"
-        if filler_count <= 2
-        else "Try reducing filler words and improve structure."
+    existing_user = (
+        db.query(models.User)
+        .filter(
+            models.User.username ==
+            user.username
+        )
+        .first()
     )
 
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Username already exists"
+        )
+
+    existing_email = (
+        db.query(models.User)
+        .filter(
+            models.User.email ==
+            user.email
+        )
+        .first()
+    )
+
+    if existing_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered"
+        )
+
+    hashed_password = pwd_context.hash(
+        user.password
+    )
+
+    new_user = models.User(
+        username=user.username,
+        email=user.email,
+        password=hashed_password
+    )
+
+    db.add(new_user)
+
+    db.commit()
+
+    db.refresh(new_user)
+
     return {
-        "total_words": total_words,
-        "filler_count": filler_count,
-        "communication_score": score,
-        "suggestion": suggestion,
+        "message":
+        "User registered successfully"
     }
 
 
-# ---------------- EYE CONTACT ----------------
+# ======================================================
+# JWT TOKEN GENERATION
+# ======================================================
+
+def create_access_token(
+    data: dict
+):
+
+    to_encode = data.copy()
+
+    expire = (
+        datetime.utcnow()
+        + timedelta(
+            minutes=
+            ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+    )
+
+    to_encode.update(
+        {
+            "exp": expire
+        }
+    )
+
+    encoded_jwt = jwt.encode(
+        to_encode,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
+    return encoded_jwt
+
+
+# ======================================================
+# LOGIN API
+# ======================================================
+
+@app.post("/login")
+def login(
+    user: schemas.UserLogin,
+    db: Session = Depends(get_db)
+):
+
+    db_user = (
+        db.query(models.User)
+        .filter(
+            models.User.username ==
+            user.username
+        )
+        .first()
+    )
+
+    if not db_user:
+        raise HTTPException(
+            status_code=401,
+            detail=
+            "Invalid username or password"
+        )
+
+    valid_password = pwd_context.verify(
+        user.password,
+        db_user.password
+    )
+
+    if not valid_password:
+        raise HTTPException(
+            status_code=401,
+            detail=
+            "Invalid username or password"
+        )
+
+    access_token = create_access_token(
+        data={
+            "sub":
+            db_user.username
+        }
+    )
+
+    return {
+        "access_token":
+        access_token,
+
+        "token_type":
+        "bearer",
+
+        "username":
+        db_user.username
+    }
+# ======================================================
+# EYE CONTACT DETECTION
+# ======================================================
+
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades +
     "haarcascade_frontalface_default.xml"
@@ -134,148 +303,144 @@ def detect_eye_contact(data: dict):
             "face_detected": False
         }
 
-    image_data = image_data.split(",")[1]
+    try:
+        image_data = image_data.split(",")[1]
 
-    image_bytes = base64.b64decode(image_data)
-
-    image = Image.open(
-        io.BytesIO(image_bytes)
-    )
-
-    frame = np.array(image)
-
-    frame = cv2.cvtColor(
-        frame,
-        cv2.COLOR_RGB2BGR
-    )
-
-    gray = cv2.cvtColor(
-        frame,
-        cv2.COLOR_BGR2GRAY
-    )
-
-    faces = face_cascade.detectMultiScale(
-        gray,
-        1.1,
-        5
-    )
-
-    return {
-        "face_detected": len(faces) > 0
-    }
-
-
-# ---------------- REGISTER ----------------
-@app.post("/register")
-def register(
-    user: schemas.UserCreate,
-    db: Session = Depends(get_db)
-):
-
-    # Check username
-    existing_user = (
-        db.query(models.User)
-        .filter(
-            models.User.username == user.username
-        )
-        .first()
-    )
-
-    if existing_user:
-        raise HTTPException(
-            status_code=400,
-            detail="Username already exists"
+        image_bytes = base64.b64decode(
+            image_data
         )
 
-    # Check email
-    existing_email = (
-        db.query(models.User)
-        .filter(
-            models.User.email == user.email
-        )
-        .first()
-    )
-
-    if existing_email:
-        raise HTTPException(
-            status_code=400,
-            detail="Email already registered"
+        image = Image.open(
+            io.BytesIO(image_bytes)
         )
 
-    # Hash password
-    hashed_password = pwd_context.hash(
-        user.password
-    )
+        frame = np.array(image)
 
-    # Create user
-    new_user = models.User(
-        username=user.username,
-        email=user.email,
-        password=hashed_password
-    )
-
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-
-    return {
-        "message": "User registered successfully"
-    }
-
-# ---------------- JWT TOKEN GENERATION ----------------    
-def create_access_token(data: dict):
-    to_encode = data.copy()
-
-    expire = datetime.utcnow() + timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
-    )
-
-    to_encode.update({"exp": expire})
-
-    encoded_jwt = jwt.encode(
-        to_encode,
-        SECRET_KEY,
-        algorithm=ALGORITHM
-    )
-
-    return encoded_jwt
-
-# ---------------- LOGIN ----------------
-@app.post("/login")
-def login(
-    user: schemas.UserLogin,
-    db: Session = Depends(get_db)
-):
-
-    db_user = (
-        db.query(models.User)
-        .filter(models.User.username == user.username)
-        .first()
-    )
-
-    if not db_user:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid username or password"
+        frame = cv2.cvtColor(
+            frame,
+            cv2.COLOR_RGB2BGR
         )
 
-    if not pwd_context.verify(
-        user.password,
-        db_user.password
-    ):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid username or password"
+        gray = cv2.cvtColor(
+            frame,
+            cv2.COLOR_BGR2GRAY
         )
 
-    access_token = create_access_token(
-        data={
-            "sub": db_user.username
+        faces = face_cascade.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5
+        )
+
+        return {
+            "face_detected": len(faces) > 0
         }
-    )
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "username": db_user.username
-    }
+    except Exception:
+        return {
+            "face_detected": False
+        }
+
+
+# ======================================================
+# GEMINI ANALYSIS SCHEMA
+# ======================================================
+
+class Response(BaseModel):
+    question: str
+    answer: str
+
+
+# ======================================================
+# GEMINI AI ANALYSIS
+# ======================================================
+
+@app.post("/analyze")
+def analyze(responses: list[Response]):
+
+    try:
+
+        prompt = """
+You are an expert interview coach.
+
+Analyze the following interview answers and return ONLY valid JSON.
+
+Required JSON format:
+
+{
+    "overall_score": 0,
+    "communication_feedback": "",
+    "technical_feedback": "",
+    "strengths": [],
+    "improvements": [],
+    "recommendation": ""
+}
+
+Scoring Rules:
+- Score should be between 0 and 100.
+- Strengths should be an array.
+- Improvements should be an array.
+- Recommendation should be one short sentence.
+
+Interview Answers:
+
+"""
+
+        for response in responses:
+            prompt += (
+                f"\nQuestion: {response.question}\n"
+                f"Answer: {response.answer}\n"
+            )
+
+        gemini_response = gemini_model.generate_content(
+            prompt
+        )
+
+        result = gemini_response.text.strip()
+
+        # Remove markdown if Gemini returns it
+        result = result.replace(
+            "```json",
+            ""
+        )
+
+        result = result.replace(
+            "```",
+            ""
+        )
+
+        result = result.strip()
+
+        analysis = json.loads(result)
+
+        return analysis
+
+    except Exception as e:
+
+        print(
+            "ANALYZE ERROR:",
+            str(e)
+        )
+
+        return {
+            "overall_score": 0,
+            "communication_feedback":
+                "AI analysis unavailable.",
+
+            "technical_feedback":
+                "AI analysis unavailable.",
+
+            "strengths": [],
+
+            "improvements": [
+                "Try again later."
+            ],
+
+            "recommendation":
+                "Unable to generate recommendation."
+        }
+
+
+# ======================================================
+# END OF FILE
+# ======================================================

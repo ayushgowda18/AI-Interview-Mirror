@@ -1,7 +1,9 @@
 import "./Dashboard.css";
+import { useNavigate } from "react-router-dom";
 
 function Dashboard() {
   const username = localStorage.getItem("username");
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -10,12 +12,30 @@ function Dashboard() {
     window.location.href = "/";
   };
 
+  const handleStartInterview = () => {
+    navigate("/select-role");
+  };
+
+  const handleVoiceInterview = () => {
+    alert("🎤 Voice Interview feature coming soon!");
+  };
+
+  const handleResumeAnalyzer = () => {
+    alert("📄 Resume Analyzer feature coming soon!");
+  };
+
+  const handleInterviewHistory = () => {
+    alert("📊 Interview History feature coming soon!");
+  };
+
   return (
     <div className="dashboard-page">
 
       <div className="dashboard-container">
 
+        {/* HERO SECTION */}
         <div className="hero-card">
+
           <h1>
             Welcome back, {username}! 👋
           </h1>
@@ -24,39 +44,57 @@ function Dashboard() {
             Ready to ace your next interview?
           </p>
 
-          <button className="start-btn">
+          <button
+            className="start-btn"
+            onClick={handleStartInterview}
+          >
             🚀 Start AI Interview
           </button>
+
         </div>
 
+        {/* QUICK ACTIONS */}
         <div className="section-title">
           Quick Actions
         </div>
 
         <div className="quick-grid">
 
-          <div className="action-card">
+          <div
+            className="action-card"
+            onClick={handleStartInterview}
+          >
             🧠
             <h3>Generate Questions</h3>
           </div>
 
-          <div className="action-card">
+          <div
+            className="action-card"
+            onClick={handleVoiceInterview}
+          >
             🎤
             <h3>Voice Interview</h3>
           </div>
 
-          <div className="action-card">
+          <div
+            className="action-card"
+            onClick={handleResumeAnalyzer}
+          >
             📄
             <h3>Resume Analyzer</h3>
           </div>
 
-          <div className="action-card">
+          <div
+            className="action-card"
+            onClick={handleInterviewHistory}
+          >
             📊
             <h3>Interview History</h3>
           </div>
 
         </div>
 
+        {/* STATS */}
         <div className="stats-section">
 
           <div className="stat-card">
@@ -76,6 +114,7 @@ function Dashboard() {
 
         </div>
 
+        {/* AI COACH */}
         <div className="coach-card">
 
           <h2>🤖 AI Coach</h2>
@@ -87,6 +126,7 @@ function Dashboard() {
 
         </div>
 
+        {/* LOGOUT */}
         <button
           className="logout-btn"
           onClick={handleLogout}

@@ -1,4 +1,5 @@
-import { useLocation } from "react-router-dom";
+import "./Report.css";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -21,47 +22,175 @@ ChartJS.register(
 
 function Report() {
   const { state } = useLocation();
+  const navigate = useNavigate();
 
-  const analysis = state.analysis;
-  const answers = state.answers;
-  const role = state.role;
+  if (!state) {
+    return (
+      <div className="report-page">
+        <h2>No report found.</h2>
+
+        <button
+          className="home-btn"
+          onClick={() => navigate("/dashboard")}
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    );
+  }
+
+  const analysis = state.analysis || {};
+  const answers = state.answers || [];
+  const role = state.role || "";
   const eye = state.eyeContactScore || 0;
 
-  const data = {
-    labels: ["Score", "Words", "Filler"],
+  const chartData = {
+    labels: [
+      "Communication",
+      "Eye Contact",
+      "Words",
+      "Fillers",
+    ],
+
     datasets: [
       {
-        label: "Performance",
+        label: "Interview Performance",
         data: [
-          analysis.communication_score,
-          analysis.total_words,
-          analysis.filler_count,
+          analysis.communication_score || 0,
+          eye,
+          analysis.total_words || 0,
+          analysis.filler_count || 0,
         ],
+
+        backgroundColor: [
+          "#6366F1",
+          "#10B981",
+          "#3B82F6",
+          "#EF4444",
+        ],
+
+        borderRadius: 10,
       },
     ],
   };
 
   return (
-    <div>
-      <h1>Interview Report</h1>
+    <div className="report-page">
 
-      <h2>{role}</h2>
+      <div className="report-container">
 
-      <h3>🎯 Score: {analysis.communication_score}</h3>
-      <h3>📝 Words: {analysis.total_words}</h3>
-      <h3>⚠️ Fillers: {analysis.filler_count}</h3>
-      <h3>👀 Eye Contact: {eye}%</h3>
+        <div className="report-header">
 
-      <Bar data={data} />
+          <h1>
+            📊 AI Interview Report
+          </h1>
 
-      <hr />
+          <p>
+            Role: {role}
+          </p>
 
-      {answers.map((a, i) => (
-        <div key={i}>
-          <p><b>Q:</b> {a.question}</p>
-          <p><b>A:</b> {a.answer}</p>
         </div>
-      ))}
+
+        <div className="summary-grid">
+
+          <div className="summary-card">
+            <h2>
+              {analysis.communication_score || 0}
+            </h2>
+
+            <p>
+              Communication Score
+            </p>
+          </div>
+
+          <div className="summary-card">
+            <h2>
+              {analysis.total_words || 0}
+            </h2>
+
+            <p>
+              Total Words
+            </p>
+          </div>
+
+          <div className="summary-card">
+            <h2>
+              {analysis.filler_count || 0}
+            </h2>
+
+            <p>
+              Filler Words
+            </p>
+          </div>
+
+          <div className="summary-card">
+            <h2>
+              {eye}%
+            </h2>
+
+            <p>
+              Eye Contact
+            </p>
+          </div>
+
+        </div>
+
+        <div className="feedback-card">
+
+          <h2>
+            🤖 AI Feedback
+          </h2>
+
+          <p>
+            {analysis.feedback ||
+              analysis.suggestion ||
+              "No feedback available."}
+          </p>
+
+        </div>
+
+        <div className="chart-card">
+
+          <h2>
+            📈 Performance Overview
+          </h2>
+
+          <Bar data={chartData} />
+
+        </div>
+
+        <div className="answers-card">
+
+          <h2>
+            📝 Your Responses
+          </h2>
+
+          {answers.map((a, index) => (
+            <div
+              className="answer-item"
+              key={index}
+            >
+              <h4>
+                Q{index + 1}. {a.question}
+              </h4>
+
+              <p>
+                {a.answer}
+              </p>
+            </div>
+          ))}
+
+        </div>
+
+        <button
+          className="home-btn"
+          onClick={() => navigate("/dashboard")}
+        >
+          🏠 Back to Dashboard
+        </button>
+
+      </div>
+
     </div>
   );
 }
