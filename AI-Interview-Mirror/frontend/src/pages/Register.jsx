@@ -60,7 +60,7 @@ function Register() {
 
       alert(response.data.message);
 
-      window.location.href = "/login";
+      window.location.href = "/";
     } catch (error) {
       alert(
         error.response?.data?.detail ||
